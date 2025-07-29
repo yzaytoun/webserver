@@ -1,0 +1,127 @@
+Structure of HTTP Transactions
+
+An HTTP client opens a connection and sends a request message  to an HTTP server
+
+the server then returns a response message containing the resource that was requested.
+
+After delivering the response, the server closes the connection (stateless protocol)
+
+The format of the request and response messages are similar
+	an initial line(CRLF)
+	zero or more header lines(CRLF)
+	a blank line (i.e. a CRLF by itself)
+	an optional message body (e.g. a file, or query data, or query output).
+
+	<initial line, different for request vs. response>
+	Header1: value1
+	Header2: value2
+	Header3: value3
+	<optional message body goes here, like file contents or query data;
+	it can be many lines long, or even binary data $&*%@!^$@>
+
+Initial reques line:
+		three parts, separated by spaces:  'method name' 'local path of the requested resource' 'version of HTTP'.
+		Ej:
+			GET /path/to/file/index.html HTTP/1.0
+
+Initial Response Line Status Line
+		three parts separated by spaces: 'HTTP version' 'response status code' 'English reason phrase describing the status code'
+		Ej:
+			HTTP/1.0 200 OK
+			HTTP/1.0 404 Not Found
+		Status code:
+			1xx indicates an informational message only
+			2xx indicates success of some kind
+			3xx redirects the client to another URL
+			4xx indicates an error on the client's part
+			5xx indicates an error on the server's part
+
+Header Lines
+Header lines provide information about the request or response, or about the object sent in the message body.
+one line per header of the form "Header-Name: valueCRLF" 
+		Ej
+			Header1: some-long-value-1a, some-long-value-1b
+			HEADER1:    some-long-value-1a,
+                        some-long-value-1b
+		HTTP 1.1 defines 46 headers, and one (Host:) is required in requests.
+
+Message body
+An HTTP message may have a body of data sent after the header lines.
+In a response, this is where the requested resource is returned to the client
+and not the actual resource.
+This is useful to check characteristics of a resource without actually downloading it,
+thus saving bandwidth. Use HEAD when you don't actually need a file's contents.
+
+HEAD method:
+like a GET request, except it asks the server to return the response headers only, like by a CGI script. 
+
+POST method:
+Used to send data to the server to be processed in some way,
+	There's a block of data sent with the request, in the message body.
+	extra headers to describe this message body, like Content-Type: and Content-Length:
+	The request URI is not a resource to retrieve; it's usually a program to handle the data you're sending.
+	The HTTP response is normally program output, not a static file.
+	
+	
+Tolerant:
+	Aunque las líneas de encabezado deben terminar con CRLF,
+	es posible que alguien utilice un solo LF en su lugar. Se acepta CRLF o LF.
+	Los tres campos de la línea inicial del mensaje deben estar separados por un
+	solo espacio, pero se pueden utilizar varios espacios o tabulaciones.
+	Se acepta cualquier cantidad de espacios o tabulaciones entre estos campos.
+
+
+
+#HTTP1.1
+##Cliente
+### include the Host:
+	header with each request
+### Chunked Transfer-Encoding:
+	it might use the simple chunked transfer-encoding,
+	breaks the complete response into smaller chunks and sends them in series.
+		Transfer-Encoding: chunked
+
+###persistentes:
+	Las conexiones persistentes son predeterminadas en HTTP 1.1 las conexiones TCP permanecen abiertas después de cada solicitud y respuesta.
+	Solo hay que abrir una conexión y enviar varias solicitudes en serie (pipelining).
+	read the responses in the same order as the requests were sent
+	careful to read the correct length of each response, to separate them correctly.
+
+	If a client includes the "Connection: close" header in the request,
+	then the connection will be closed after the corresponding response.
+	Use this if you don't support persistent connections,
+	or if you know a request will be the last on its connection. 
+	A server might close the connection before all responses are sent,
+	so a client must keep track of requests and resend them as needed. When resending,
+	don't pipeline the requests until you know the connection is persistent.
+
+###100 Continue:
+Don't pipeline at all if you know the server won't support persistent connections 
+During the course of an HTTP 1.1 client sending a request to a server, the server
+might respond with an interim "100 Continue" response.
+
+
+##Server
+
+### Requiring the Host: Header
+### Chunked
+### Accepting Absolute URL's
+### Persistent 
+### 100 Continue
+### The Date: Header
+	Caching is an important improvement in HTTP 1.1,
+	and can't work without timestamped responses. So,
+	servers must timestamp every response with a Date: 
+	header containing the current time, in the form
+### Handling Requests with If-Modified-Since
+	avoid sending resources that don't need to be sent, thus saving bandwidth,
+	HTTP 1.1 defines the If-Modified-Since: and If-Unmodified-Since: request headers.
+		"only send the resource if it has changed since this date"
+### Supporting the GET and HEAD methods
+ Four other methods are defined in HTTP 1.1
+		OPTIONS PUT DELETE TRACE
+ If a client requests a method you don't support, respond with "501 Not Implemented"
+ ### Supporting HTTP 1.0
+	To be compatible with older browsers, HTTP 1.1 servers must support HTTP 1.0 requests.
+
+# CGI

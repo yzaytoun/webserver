@@ -1,0 +1,1 @@
+docker run --add-host localhost:host-gateway -it --mount type=bind,source=/Users/yousef/Desktop/webserv42,target=/workspaces tester_ubuntu

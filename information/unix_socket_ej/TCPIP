@@ -1,0 +1,101 @@
+TCP/IP 
+
+TCP/IP protocol suite is a layered networking protocol
+the Internet Protocol (IP) and various protocols layered above it.
+
+router: a computer whose function is to connect one subnetwork to another,
+transferring data between them.
+
+A networking protocol is a set of rules defining how information is to be transmitted
+across a network.
+
+Application layer
+Transport layer : TCP(SOCK_STREAM) UDP(SOCK_DGRAM)
+Network layer   : IP(SOCK_RAW)
+Data-link layer
+
+
+Data-link layer: 
+consists of the device driver and the hardware interface
+To transfer data, the data-link layer encapsulates datagrams from the network layer into units called frames
+each frame includes a header containing, for example, the destination address and frame sizeç
+
+
+Network layer: 
+concerned with delivering packets (data) from the source host to the destination host. This layer performs a
+variety of tasks, including:
+	breaking data into fragments small enough for transmission via the data-link layer
+	routing data across the internet
+	providing services to the transport layer.
+
+IP transmits data in the form of datagrams (packets).
+IP is described as a connectionless protocol, since it doesn’t provide the notion of a
+virtual circuit connecting two hosts. IP is also an unreliable protocol: it makes a
+“best effort” to transmit datagrams from the sender to the receiver, but doesn’t
+guarantee that packets will arrive in the order they were transmitted, that they
+won’t be duplicated, or even that they will arrive at all.
+
+Transport layer :
+	User Datagram Protocol (UDP) is the protocol used for datagram sockets
+	Transmission Control Protocol (TCP) is the protocol used for stream sockets.
+
+	Port Numbers:
+		The task of the transport protocol is to provide an end-to-end communication service 
+		to applications residing on different hosts.
+		well-known port  : are permanently assigned to specific applications
+		registered ports : which are allocated to application developers on a less stringent basis
+			https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+		privileged ports : meaning that only privileged (CAP_NET_BIND_SERVICE) processes may bind to these ports.
+		ephemeral port: If an application doesn’t select a particular port then TCP and UDP assign a unique short live port
+			rango de proovate port en /proc/sys/net/ipv4/ip_local_port_range
+
+
+	User Datagram Protocol (UDP):
+		UDP adds just two features to
+			IP frame + port number + data checksum
+		UDP is connectionless
+	Transmission Control Protocol
+		TCP provides a reliable, connection-oriented, bidirectional, byte-stream communication channel between two endpoints
+		TCP endpoint:
+		include
+		the send buffers.
+		the receive buffers for this end of the connection
+		The state information that is maintained in order to synchronize the operation of the two
+		connected endpoints.
+
+		receiving TCP and sending TCP to denote the TCP endpoints
+maintained for the receiving and sending applications on either end of a stream
+socket connection that is being used to transmit data in a particular direction.
+
+Connection establishment
+	Negociation sender receiver
+
+Packaging of data in segments
+	Data is broken into segments, each of which contains a checksum to allow the
+	detection of end-to-end transmission errors. Each segment is transmitted in a single
+	IP datagram.
+
+Acknowledgements, retransmissions, and timeouts
+	TCP segment arrives at its destination without errors, the receiving TCP sends
+	a positive acknowledgement to the sender, informing it of the successfully delivered
+	data.
+	If errors in data then it is discarded, and no acknowledgement is sent.
+	To handle the possibility of segments that never arrive or are discarded, the
+	sender starts a timer when each segment is transmitted. If an acknowledgement is
+	not received before the timer expires, the segment is retransmitted.
+	
+Sequencing
+	Each byte that is transmitted over a TCP connection is assigned a logical sequence
+	number. This number indicates the position of that byte in the data stream for the
+	connection.
+	TCP segment is transmitted, it includes a field containing the sequence number
+		- The sequence number allows TCP segments to be assembled in the correct
+		order at the destination, and then passed as a byte stream to the application
+		layer.
+		-  The acknowledgement message passed from the receiver back to the sender
+		can use the sequence number to identify which TCP segment was received.
+		- The receiver can use the sequence number to eliminate duplicate segments
+
+Flow control
+	Flow control prevents a fast sender from overwhelming a slow receiver.
+

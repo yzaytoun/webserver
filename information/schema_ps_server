@@ -1,0 +1,15 @@
+
+Servidor basic loop:
+
+	1. Inicializacion: lee configuracion del fichero
+	2. Proparacion conexiones en red usadas para recibir solicitudes del cliente
+
+	(Main loop)
+	3. Espera a que lleguen peticiones
+	4. Genera proceso para atender cliente
+		Poceso hijo:  atender cliente
+	5. Retornar a estado esperar peticion
+
+
+How NGINX work:
+	https://www.solo.io/topics/nginx/

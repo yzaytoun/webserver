@@ -1,0 +1,62 @@
+
+server {
+    listen 80;
+    server_name localhost;
+
+    # Serve root directory only for GET requests
+    location / {
+        if ($request_method !~ ^GET$ ) {
+            return 405;  # Method Not Allowed
+        }
+        # Your root content goes here
+        root /var/www/html;
+        try_files $uri $uri/ =404;
+    }
+
+    # /put_test/* should handle PUT requests and save files
+    location /put_test/ {
+        if ($request_method !~ ^PUT$ ) {
+            return 405;
+        }
+        # Specify where the uploaded files will be saved
+        root /path/to/put_test_uploads;
+        upload_store /path/to/put_test_uploads;
+        upload_store_access user:r;
+        upload_pass_form_field "^file\$";
+        upload_max_size 10M;
+    }
+
+    # Handle .bla files with POST request calling cgi_test
+    location ~* \.bla$ {
+        if ($request_method !~ ^POST$ ) {
+            return 405;
+        }
+        fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;  # Adjust PHP-FPM if needed
+        fastcgi_param SCRIPT_FILENAME /path/to/cgi_test;
+        fastcgi_param REQUEST_METHOD POST;
+        fastcgi_param QUERY_STRING "";
+        fastcgi_param CONTENT_TYPE $content_type;
+        fastcgi_param CONTENT_LENGTH $content_length;
+        fastcgi_pass_header Authorization;
+        include fastcgi_params;
+    }
+
+    # Handle POST requests for /post_body with maxBody of 100
+    location /post_body {
+        client_max_body_size 100k;
+        if ($request_method !~ ^POST$ ) {
+            return 405;
+        }
+        # Just an example response
+        return 200 'POST request received';
+    }
+
+    # /directory/ should answer GET requests and return YoupiBanane
+    location /directory/ {
+        if ($request_method !~ ^GET$ ) {
+            return 405;
+        }
+        root /path/to/YoupiBanane;  # Set the root to the YoupiBanane directory
+        try_files $uri /youpi.bad_extension;  # If no file is requested, serve 'youpi.bad_extension'
+    }
+}

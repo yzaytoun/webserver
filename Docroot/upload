@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome to WebServer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 1rem 0;
+    }
+    main {
+      padding: 2rem;
+    }
+    footer {
+      margin-top: 2rem;
+      padding: 1rem;
+      background-color: #333;
+      color: white;
+    }
+    form {
+      margin-bottom: 2rem;
+    }
+    label {
+      color: #bb5a19;
+      font-style: oblique;
+    }
+    #fileGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+      padding: 1rem;
+    }
+    .file-card {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .file-card button {
+      margin-top: 0.5rem;
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .file-card button:hover {
+      background-color: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome to My WebServer!</h1>
+  </header>
+  <main>
+    <p>This is a simple web page served by your C++ web server.</p>
+    <br/>
+    <form id="uploadForm" method="post" action="/uploads" enctype="multipart/form-data">
+      <label for="file">Choose a file</label>
+      <input type="file" id="file" name="myFile" required />
+      <button type="submit">Send the file</button>
+    </form>
+
+    <section id="fileGrid">
+      <!-- File cards will be inserted here -->
+    </section>
+  </main>
+  <footer>
+    <p>&copy; 2024 My WebServer. All rights reserved.</p>
+  </footer>
+
+  <script>
+    async function loadFiles() {
+    const response = await fetch('/uploads', {
+        headers: {
+        'Accept': 'application/json'
+        }
+    });
+
+    if (!response.ok) return;
+
+    const files = await response.json();
+    const grid = document.getElementById('fileGrid');
+    grid.innerHTML = '';
+
+    files.forEach(file => {
+        if (file.is_dir) return; // Opcional: ignorar carpetas
+
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        card.innerHTML = `
+        <p>${file.name}</p>
+        <button onclick="deleteFile('${file.name}')">Delete</button>
+        `;
+        grid.appendChild(card);
+    });
+    }
+
+    async function deleteFile(filename) {
+      const response = await fetch(`/uploads/${filename}`, { method: 'DELETE' });
+      if (response.ok) {
+        alert(`Deleted ${filename}`);
+        loadFiles();
+      } else {
+        alert('Failed to delete file.');
+      }
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const formData = new FormData(this);
+      const response = await fetch('/uploads', {
+        method: 'POST',
+        body: formData
+      });
+      if (response.ok) {
+        alert('File uploaded!');
+        loadFiles();
+        this.reset();
+      } else {
+        alert('Upload failed.');
+      }
+    });
+
+    // Load existing files on page load
+    loadFiles();
+  </script>
+</body>
+</html>

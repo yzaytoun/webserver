@@ -1,0 +1,113 @@
+From the perspective of the Linux kernel, a socket is an end point for communication.
+From the perspective of a Linux program, a socket is an open file with a corresponding descriptor.
+
+A typical stream socket server creates its socket using socket(), and then binds
+the socket to a well-known address using bind(). The server then calls listen() to
+allow connections to be received on the socket. Each client connection is then
+accepted on the listening socket using accept(), which returns a file descriptor for a
+new socket that is connected to the client’s socket. A typical stream socket client
+creates a socket using socket(), and then establishes a connection by calling connect(),
+specifying the server’s well-known address. After two stream sockets are connected,
+data can be transferred in either direction using read() and write(). Once all processes with a file descriptor referring to a stream socket endpoint have performed
+an implicit or explicit close(), the connection is terminated.
+
+
+A typical datagram socket server creates a socket using socket(), and then binds
+it to a well-known address using bind(). Because datagram sockets are connectionless,
+the server’s socket can be used to receive datagrams from any client. Datagrams can
+be received using read() or using the socket-specific recvfrom() system call, which
+returns the address of the sending socket. A datagram socket client creates a socket
+using socket(), and then uses sendto() to send a datagram to a specified (i.e., the
+server’s) address. The connect() system call can be used with a datagram socket to set a
+peer address for the socket. After doing this, it is no longer necessary to specify the destination address for outgoing datagrams; a write() call can be used to send a datagram.
+
+The int fd_socket = socket(int domain, int type, int protocol) system call creates a new socket.
+	Un file descriptor de un archivo que el kernel tratara como un socket, 
+	domain:	 dominio de direcciones que usara. AF_INET ,AF_INET6, AD_UNIX, ...
+	typo: SOCK_STREAM (Para TCP) o SOCK_DGRAM (Para UDP) ... 
+	protocol: 
+
+The bind(int fd_socket, const struct sockaddr *addr, socklen_t) system call binds a socket to an address. Usually, a server employs
+this call to bind its socket to a well-known address so that clients can locate
+the socket.
+
+The listen() system call allows a stream socket to accept incoming connections
+from other sockets.
+
+The accept() system call accepts a connection from a peer application on a listening stream socket, and optionally returns the address of the peer socket.
+
+The connect() system call establishes a connection with another socket.
+
+
+Socket I/O can be performed using the conventional read() and write() system calls
+
+getaddrinfo:
+	The getaddrinfo function converts string representations of hostnames, host
+	addresses, service names, and port numbers into socket address structures.
+
+
+struct addrinfo {
+	int ai_flags; // AI_PASSIVE, AI_CANONNAME, etc.
+	int ai_family; // AF_INET, AF_INET6, AF_UNSPEC
+	int ai_socktype; // SOCK_STREAM, SOCK_DGRAM
+	int ai_protocol; // use 0 for "any"
+	size_t ai_addrlen; // size of ai_addr in bytes
+	struct sockaddr *ai_addr; // struct sockaddr_in or _in6
+	char *ai_canonname; // full canonical hostname
+	struct addrinfo *ai_next; // linked list, next node
+};
+
+struct sockaddr {
+	unsigned short sa_family;  // address family, AF_xxx
+	char sa_data[14];  // 14 bytes of protocol address
+};
+
+struct sockaddr_in {
+	short int sin_family; // Address family, AF_INET
+	unsigned short int sin_port; // Port number
+	struct in_addr sin_addr; // Internet address
+	unsigned char sin_zero[8]; // Same size as struct sockaddr
+};
+
+struct in_addr {
+	uint32_t s_addr; // that's a 32-bit int (4 bytes)
+};
+
+struct sockaddr_in6 {
+u_int16_t sin6_family; // address family, AF_INET6
+u_int16_t sin6_port; // port number, Network Byte Order
+u_int32_t sin6_flowinfo; // IPv6 flow information 
+struct in6_addr sin6_addr; // IPv6 address
+u_int32_t sin6_scope_id; // Scope ID
+};
+
+struct in6_addr {
+unsigned char
+};
+
+
+getnameinfo
+
+poll API
+epoll_create
+epoll_ctl
+epoll_wait
+
+
+htons
+htonl
+ntohs
+ntohl
+
+gai_strerror
+socketpair
+select
+listen
+socket
+connect
+getaddrinfo
+freeaddrinfo
+setsockopt
+getsockname
+getprotobyname
+

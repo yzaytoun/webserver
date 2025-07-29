@@ -1,0 +1,434 @@
+
+All system calls for performing I/O refer to open files using a file descriptor.
+File descriptors are used to refer to all types of open files, including pipes,
+FIFOs, sockets, terminals, devices, and regular files.
+
+Universality of I/O:
+This means that the same four system calls open(), read(), write(), and close()
+are used to perform I/O on all types of files, including devices such as terminals.
+
+##### READ/WRITE/CLOSE
+
+#include <unistd.h> (Unix Standar)
+
+ssize_t write(int fd, void *buffer, size_t count);
+	Returns number of bytes written, or –1 on error
+
+ssize_t read(int fd, void *buffer, size_t count);
+	Returns number of bytes read, 0 on EOF, or –1 on error
+
+int close(int fd);
+	Returns 0 on success, or –1 on erro
+
+##### OPEN
+
+#include <sys/stat.h>
+#include <fcntl.h> (File control)
+
+int open(const char *pathname, int flags, ... /* mode_t mode */);
+	Returns fd on success, or –1 on error
+	flags:
+		tres categorias principales:
+			* Access mode flag:
+				O_RDONLY, O_WRONLY, O_RDWR
+			* Creation flag:
+				O_CLOEXEC:
+					Set the close-on-exec flag (27.4)
+				O_DIRECT:
+					File I/O bypasses buffer cache (13.6)
+				O_NOCTTY:
+					Don’t let pathname become the controlling terminal
+				O_NOFOLLOW:
+					Don’t dereference symbolic links
+				O_DIRECTORY:
+					Fail if pathname is not a directory
+				O_LARGEFILE
+				O_NOATIME:
+					Don’t update file last access time on read() 
+				O_CREAT/O_EXCL/O_TURNC
+			* Status flag:
+				O_APPEND
+				O_ASYNC:
+					Generate a signal when I/O is possible
+					For signal-driven I/O, is available only for certain file types,
+					such as terminals, FIFOs, and sockets.To enable signal-driven I/O,
+					we must instead set this flag using the fcntl() F_SETFL operation
+				O_DSYNC:
+					Provide synchronized I/O data integrity (13.3)
+				O_SYNC:
+					Make file writes synchronous (13.2)
+				O_NONBLOCK:
+					Open in nonblocking mode 
+	mode_t
+		S_ISUID, S_ISGID, S_ISVTX, S_IRUSR, S_IWUSR, S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP, S_IROTH, S_IWOTH, S_IXOTH
+
+
+Race Conditions:
+
+	situation where the result produced by two processes operating on shared
+	resources depends in an unexpected way on the relative order in which the processes gain access to 
+	the CPU(s).
+
+	In files two situations involving file I/O where race conditions occur, and show how these conditions
+	are eliminated through the use of open() flags that guarantee the atomicity of the relevant file
+	operations.
+		 - multiple processes appending data to the same file
+				 opening a file with the O_APPEND flag, write operation happen atomically
+		 - Creating a file exclusively
+		 	The check on the prior existence of the file and the creation of the file are performed atomically. 
+
+
+#### FCNTL
+
+#include <fcntl.h>
+
+int fcntl(int fd, int cmd, ...);
+	Return on success depends on cmd, or –1 on error
+
+Retrieve or modify the access mode and open file status flags of an open file
+	F_SETFL:Set  the  file status flags to the value specified by arg.
+		File access mode (O_RDONLY O_WRONLY, O_RDWR) and file creation flags
+		(O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg are ignored.
+		This command can change  only  the  O_APPEND,  O_ASYNC, O_DIRECT, O_NOATIME, and O_NONBLOCK flags.
+	FD_CLOEXEC........
+
+#### FD and Open Files
+
+To understand what is going on, we need to examine three data structures
+maintained by the kernel:
+
+	the per-process file descriptor table;
+	the system-wide table of open file descriptions;
+	the file system i-node table.
+
+(Process level) For each process, the kernel maintains a table of open file descriptors. Each entry in
+this table records information about a single file descriptor, including: flags controlling of the file descriptor and  reference to the open file description.
+
+(Kernel level) The kernel maintains a system-wide table of all open file descriptions 'open file table' its entries are sometimes called 'open file handles'
+	offset
+	status flags specified when opening the file
+	the file access mode
+	settings relating to signal-driven I/O
+	a reference to the i-node object for this file.
+
+(File System level) Each file system has a table of i-nodes for all files residing in the file system.
+The i-node for each file includes the following information:
+	file type and permissions (14)
+	a pointer to a list of locks held on this file
+	various properties of the file; size, timestamps relating ...
+
+	Fd_and_OpenFile.png:
+		A_fd_1 = A_fd_20 son el mismo archivo (20). Esta situación es alcazada con dup.
+		A_fd_2 = B_fd_2 son el mismo archivo (73).  Esta situacion ocurre al hacer fork or r if one
+			process passed an open descriptor to another process using a UNIX domain socket.
+		A_fd_0 = B_fd_3 different open file descriptions but that these descriptions refer to the 
+			same i-node table entry. the same file. Each process independently called open() for the same file.
+
+	Implications:
+		THE OFFSET SAVE IN OPEN FILE TABLE
+			Two different file descriptors that refer to the same open file description share a file offset value.
+		THE FILE STATUS FLAGS SAVE IN OPEN FILE TABLE
+			Flags O_APPEND, O_NONBLOCK, and O_ASYNC similar in all file descriptors that refer to the same open file description. 
+		THE FILE DESCRIPTOR FLAG SAVE IN PROCESS FILE DESCRIPTOR TABLE
+			 Modifying these flags (i.e close-on-exec flag) does not affect other file descriptors in the same process or a different process.
+	
+# DUP/DUP2
+
+#include <unistd.h>
+int dup(int oldfd);
+	Returns (new) file descriptor on success, or –1 on error
+int dup2(int oldfd, int newfd);
+	Returns (new) file descriptor on success, or –1 on error
+
+makes a duplicate of the file descriptor. That duplicate file descriptors share the same file
+offset value and status flags in their shared open file description. However, the new
+file descriptor has its own set of file descriptor flags, and its close-on-exec flag is always turned off.
+
+#### OTHER
+
+#include <unistd.h>
+
+Specified Offset
+ssize_t pread(int fd, void *buf, size_t count, off_t offset);
+	Returns number of bytes read, 0 on EOF, or –1 on error
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);
+	Returns number of bytes written, or –1 on error
+
+Scatter-Gather I/O
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+	Returns number of bytes read, 0 on EOF, or –1 on error
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+	Returns number of bytes written, or –1 on error
+
+scatter-gather I/O at a specified offset
+#include <sys/uio.h> (Unix io)
+size_t preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset);
+	Returns number of bytes read, 0 on EOF, or –1 on error
+ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset);
+	Returns number of bytes written, or –1 on error
+
+#include <unistd.h>
+int truncate(const char *pathname, off_t length);
+int ftruncate(int fd, off_t length);
+	Both return 0 on success, or –1 on error
+
+
+#### Nonblocking I/O
+
+Some control over how the wait for I/O to complete is accommodated is available to the programmer of user applications.
+
+Blocking requests: meaning that control does not return to the application until the I/O is complete. 
+Using systems calls that block is sometimes called synchronous programming.
+In most cases, the wait is not really a problem because the program can not do anything else until
+the I/O is finished. However, in cases such as network programming with multiple clients, the
+program may wish to perform other activity as it continues to wait for more data or input from
+users.
+
+alternative is to use asynchronous programming techniques with nonblocking system calls. An asynchronous call returns
+immediately, without waiting for the I/O to complete. The completion of the I/O is later communicated to the application eithe
+through the setting of some variable in the application or through the triggering of a signal or call-back routine that is
+executed outside the linear control flow of the application.
+
+Specifying the O_NONBLOCK flag when opening a file serves two purposes:
+	If the file can’t be opened immediately, then open() returns an error instead of blocking. 
+	After a successful open(), subsequent I/O operations are also nonblocking. If 
+	an I/O system call can’t complete immediately, then either a partial data transfer is performed or the system call fails
+	with one of the errors EAGAIN or EWOULDBLOCK. Which error is returned depends on the system call.
+
+Because file descriptors for pipes and sockets are not obtained using open(), we must enable this flag using the fcntl() F_SETFL
+operation for enable O_NONBLOCK
+(44.9 y 63)
+
+##### FILE I/O BUFFERING
+
+With disk files, the read() and write() system calls don’t directly initiate disk access.
+Only copy data between a user-space buffer and a buffer in the kernel buffer cache.
+
+write(fd, "DATA", 4); // transfer 4 bytes buffer in user-space memory to buffer in kernel space
+
+At some later point, the kernel writes (flushes) its buffer to the disk. (the system call is not
+synchronized with the disk operation.) If, in the interim, another process attempts to read these bytes of
+the file, then the kernel automatically supplies the data from the buffer cache,
+rather than from (the outdated contents of) the file.
+
+For input, the kernel reads data from the disk and stores it in
+a kernel buffer. Calls to read() fetch data from this buffer until it is exhausted, at
+which point the kernel reads the next segment of the file into the buffer cache.
+
+
+### Controlling Kernel Buffering of File I/O
+
+	Synchronized I/O data integrity and synchronized I/O file integrity
+		 synchronized I/O completion to mean 
+		 an I/O operation that has either been successfully transferred [to the disk]
+		or diagnosed as unsuccessful.
+		Two different types of synchronized I/O completion:
+			Synchronized I/O data integrity completion: 
+			file data update transfers sufficient information to allow a later retrieval of that data to proceed.
+				In read operation the requested file data has been transferred to the process.
+					If there were any pending write operations affecting the requested data,
+					these are transferred to the disk before performing the read.
+				In write operation, this means that the data specified in the write request
+					has been transferred (to the disk) and all file metadata required to retrieve that
+					data has also been transferred.
+			Synchronized I/O file integrity completion  all updated file metadata is transferred to disk, even if it is not necessary
+				for the operation of a subsequent read of the file data.
+##### Making all writes synchronous: O_SYNC
+	every write() to the file automatically flushes the file data and metadata to the disk.
+	writes are performed according to synchronized I/O file integrity completion
+##### The O_DSYNC and O_RSYNC flags
+	The O_DSYNC flag causes writes to be performed according to the requirements of synchronized I/O data integrity completion
+
+	The O_RSYNC flag is specified in conjunction with either O_SYNC or O_DSYNC, and extends the write behaviors of these flags to read operations
+
+#### File System I-nodes
+
+File Information: stat()
+#include <sys/stat.h>
+int stat(const char *pathname, struct stat *statbuf);
+	All return 0 on success, or –1 on error
+	don’t require permissions
+
+	struct stat {
+	 dev_t st_dev; /* IDs of device on which file resides */
+	 ino_t st_ino; /* I-node number of file */
+	 mode_t st_mode; /* File type and permissions */
+	 nlink_t st_nlink; /* Number of (hard) links to file */
+	 uid_t st_uid; /* User ID of file owner */
+	 gid_t st_gid; /* Group ID of file owner */
+	 dev_t st_rdev; /* IDs for device special files; two macros major(), minor() */
+	 off_t st_size; /* Total file size (bytes) */
+	 blksize_t st_blksize; /* Optimal block size for I/O (bytes) */
+	 blkcnt_t st_blocks; /* Number of (512B) blocks allocated */
+	 time_t st_atime; /* Time of last file access */
+	 time_t st_mtime; /* Time of last file modification */
+	 time_t st_ctime; /* Time of last status change */
+	};
+	The st_dev field identifies the device on which the file resides.
+	The st_ino field contains the i-node number of the file.
+	The st_rdev field contains the major and minor IDs of the device.
+	The st_nlink field is the number of (hard) links to the file. 
+	The st_mode field is a bit mask serving the dual purpose of identifying the file type and specifying the file permissions.
+		(S_IFREG,S_IFDIR,S_IFCHR,S_IFBLK,S_IFIFO,S_IFSOCK,S_IFLNK)
+	The st_size field is the total size of the file in bytes
+		For a symbolic ink, this field contains the length (in bytes) of the pathname pointed to by the link.
+	The st_blocks field indicates the total number of blocks allocated to the file, in 512-byte block units.
+	The st_atime, st_mtime, and st_ctime fields contain, respectively, the times of last file access, last file modification, and last status change.
+
+
+#### File Permissions
+	Regular Files:
+		Owner (also known as user): The permissions granted to the owner of the file.
+		Group: The permissions granted to users who are members of the file’s group
+		Other: The permissions granted to everyone else.
+		Read: The contents of the file may be read.
+	 	Write: The contents of the file may be changed.
+		Execute: The file may be executed 
+	Permissions on Directories
+	 Same permission scheme as files. However, the three permissions are interpreted differently:
+		Read: The contents (i.e., the list of filenames) 
+		Write: Files may be created in and removed from the directory.
+		Execute: Files within the directory may be accessed. (sometimes called search permission)
+			When accessing a file, execute permission is required on all of the directories listed
+			in the pathname.
+
+####  Checking File Accessibility: access
+
+#include <unistd.h>
+int access(const char *pathname, int mode);
+	mode: F_OK R_OK W_OK X_OK
+	Returns 0 if all permissions are granted, otherwise –1 
+
+#### Access control list
+
+#### DIRECTORIES AND LINK
+	chdir()
+	opendir()
+	readdir()
+	closedir()
+#### DIRECTORIES AND LINK
+
+#### MONITORING FILE EVENTS
+
+# File Descriptor and exec
+
+By default, all file descriptors opened by a program that calls exec() remain open
+across the exec() and are available for use by the new program. This is frequently
+useful, because the calling program may open files on particular descriptors, and
+these files are automatically available to the new program, without it needing to
+know the names of, or open, the files.
+
+	The close-on-exec flag (FD_CLOEXEC)
+	Sometimes, it may be desirable to ensure that certain file descriptors are closed
+		before an exec(). In particular, if we exec() an unknown program from a privileged process, or a program that doesn’t need descriptors for files we have already opened, then it is secure programming practice to
+		ensure that all unnecessary file descriptors are closed before the new program is
+		loaded. We could do this by calling close() on all such descriptors, but this suffers
+		the following limitations:
+			 File descriptor may have been opened by a library function
+			 If the exec() call fails for some reason, we may want to keep the file descriptors open.
+		The kernel provides a close-on-exec flag for each file descriptor  the file descriptor is 
+		automatically closed during a successful exec(), but left open if the exec() fails.
+		The close-on-exec flag for a file descriptor can be accessed using the fcntl() system call 
+			get flags = fcntl(fd, F_GETFD);
+			set fcntl(fd, F_SETFD, flags |= FD_CLOEXEC)
+		When dup(), dup2(), or fcntl() is used to create a duplicate of a file descriptor, the 
+		close-on-exec flag is always cleared for the duplicate descriptor.
+	
+#### Alternative IO Models
+	
+	Three alternatives to the conventional file I/O model
+	
+		I/O multiplexing select and poll:
+			Allows a process to simultaneously monitor multiple file descriptors to find out whether I/O is possible on any of them.
+		signal-driven I/O
+			
+		Linux-specific epoll API
+
+Some applications need to able to do one or both of the following:
+	Check whether I/O is possible on a file descriptor without blocking if it is not possible.
+	Monitor multiple file descriptors to see if I/O is possible on any of them.
+
+Nonblocking I/O allows us to periodically check ("pool")
+
+we can make an input file descriptor nonblocking, and then periodically perform nonblocking reads.
+
+* I/O multiplexing allows a process to simultaneously monitor multiple file descriptors to find out whether I/O is possible on any of them
+	select() and poll()
+		select(): blocks until one or more of a set of file descriptors becomes ready
+* Signal-driven I/O 
+* The epoll API
+
+monitoring one or, commonly, several file descriptors simultaneously to see if they are ready to perform I/O
+
+The transition of a file descriptor into a ready state is triggered by some type of I/O event, such as the arrival of
+input, the completion of a socket connection, or the availability of space in a previously full socket send buffer
+after TCP transmits queued data to the socket peer.
+
+Which technique?
+	* The select() and poll() present on UNIX systems for many years. primary advantage is portability	
+	don’t scale well when monitoring large numbers of fd.
+	* The epoll API is that it allows an application to efficiently monitor large numbers of file descriptors.
+	disadvantage Linux-specific API (BSDs provide the kqueue API. No in )
+	* Like epoll, signal-driven I/O allows an application to efficiently monitor large
+	numbers of file descriptors. However, epoll provides a number of advantages
+	over signal-driven I/O:
+		We avoid the complexities of dealing with signals.
+		We can specify the kind of monitoring that we want to perform
+		We can select either level-triggered or edge-triggered notification
+	full advantage of signal-driven I/O requires the use of	
+	nonportable, Linux-specific features signal-driven I/O is no more portable than epoll.
+
+
+Level-Triggered and Edge-Triggered Notification
+	Level-triggered notification:
+		A file descriptor is considered to be ready if it is
+		possible to perform an I/O system call without blocking.
+		we can check the readiness of a
+		file descriptor at any time. This means that when we determine that a file descriptor
+		is ready (e.g., it has input available), we can perform some I/O on the descriptor, and
+		then repeat the monitoring operation to check if the descriptor is still ready (e.g., it
+		still has more input available), in which case we can perform more I/O, and so on. In
+		other words, because the level-triggered model allows us to repeat the I/O monitoring operation at any time, it is not necessary to perform as much I/O as possible
+		(e.g., read as many bytes as possible) on the file descriptor (or even perform any I/O
+		at all) each time we are notified that a file descriptor is ready.
+
+	Edge-triggered notification:
+		Notification is provided if there is I/O activity on a file descriptor since it was last monitored.
+		We receive notification only when an I/O event occurs. We don’t receive any further notification until
+		another I/O event occurs.
+
+select/poll :only level-triggered
+signal-driven: only Edge-triggered
+The epoll API differs from the other two I/O models in  that it can employ both level-triggered notification (the default) and edge-triggered notification
+
+
+Nonblocking I/O with Alternative I/O Models
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+http://www.redwoodsoft.com/%7Edru/unixbook/book.chinaunix.net/special/ebook/addisonWesley/APUE2/0201433079/toc.html
